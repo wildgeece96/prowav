@@ -10,7 +10,7 @@ requires = [
 
 setup(
     name='prowav',
-    version='0.1',
+    version='0.2',
     description='The package for preprocessing wave data',
     url='https://github.com/wildgeece96/prowav',
     author='Soh',
