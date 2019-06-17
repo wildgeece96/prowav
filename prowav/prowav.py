@@ -80,6 +80,7 @@ class ProWav(object):
         results = []
         self.num_features = []
         self.num_frames  = []
+        max_wave_size = max(self.wave_sizes)
         for i in range(len(self.data)):
             x = self.data[i]
             sample_rate = self.framerates[i]
@@ -111,6 +112,9 @@ class ProWav(object):
         if zero_padding:
             max_frame_num = max(self.num_frames)
             results_ = np.zeros([len(self.data), max_frame_num, results[0].shape[1]], dtype=np.float)
+            for i in range(len(self.data)):
+                seq_len = self.num_frames[i]
+                results_[i, :seq_len] = results[i]
             return results_
 
         return results
