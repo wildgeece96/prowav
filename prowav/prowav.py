@@ -79,7 +79,7 @@ class ProWav(object):
             self.load_wav()
         results = []
         self.num_features = []
-        self.numframes = []
+        self.num_frames  = []
         for i in range(len(self.data)):
             x = self.data[i]
             sample_rate = self.framerates[i]
