@@ -64,7 +64,7 @@ class ProWav(object):
             data.append(x)
         self.data = data
 
-    def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func=None, zero_padding=False):
+    def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func='boxcar', zero_padding=False):
         """
         inputs:
             frame_width : int. The length of frame for preprocessing (ms)
@@ -115,7 +115,7 @@ class ProWav(object):
 
         return results
 
-    def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func=None, zero_padding=False):
+    def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func='boxcar', zero_padding=False):
         """
         return :
          results: list of ndarray. List of  preprocessed data which has shape (frame_num, num_per_frame)
