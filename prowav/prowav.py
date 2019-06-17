@@ -110,7 +110,7 @@ class ProWav(object):
             self.num_frames.append(frame_num)
         if zero_padding:
             max_frame_num = max(self.num_frames)
-            results_ = np.zeros(len(self.data), max_frame_num, results[0].shape[1])
+            results_ = np.zeros([len(self.data), max_frame_num, results[0].shape[1]], dtype=np.float)
             return results_
 
         return results
