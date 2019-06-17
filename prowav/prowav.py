@@ -48,6 +48,7 @@ class ProWav(object):
             except Exception as e:
                 print(e)
                 print("Cannot open %s" % file_path)
+                raise ValueError
             wave_size = wave_file.getnframes()
             if self.max_length < wave_size:
                 self.max_length = wave_size
@@ -63,14 +64,16 @@ class ProWav(object):
             data.append(x)
         self.data = data
 
-    def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func=None):
+    def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func=None, zero_padding=False):
         """
         inputs:
             frame_width : int. The length of frame for preprocessing (ms)
             stride_width: int. The hop size for preprocessing (ms)
             mode: {'fft', 'MFCC'}. Specify preprocessing way.
+            zero_padding : bool. If return the value which padded with zero.
         returns:
-            results: ndarray with shape (frame_num, num_per_frame).
+            results: list of ndarray with shape (data_num, frame_num, num_per_frame).
+             or if zero_padding is True, shape (data_num, max_frame_num, num_per_frame).
         """
         if not self.data:
             self.load_wav()
@@ -105,16 +108,21 @@ class ProWav(object):
             results.append(x_spectrogram)
             self.num_features.append(x_spectrogram.shape[1] )
             self.num_frames.append(frame_num)
+        if zero_padding:
+            max_frame_num = max(self.num_frames)
+            results_ = np.zeros(len(self.data), max_frame_num, results[0].shape[1])
+            return results_
+
         return results
 
-    def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func=None):
+    def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func=None, zero_padding=False):
         """
         return :
          results: list of ndarray. List of  preprocessed data which has shape (frame_num, num_per_frame)
         """
         if mode=='MFCC' and not n_mfcc:
             raise ValueError("n_mfcc should be specified if you choose mode MFCC")
-        results = self._prepro(frame_width=frame_width,stride_width=stride_width,mode=mode,n_mfcc=n_mfcc,window_func=window_func)
+        results = self._prepro(frame_width=frame_width,stride_width=stride_width,mode=mode,n_mfcc=n_mfcc,window_func=window_func,zero_padding=zero_padding)
         return results
 
 
