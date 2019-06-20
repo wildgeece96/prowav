@@ -164,7 +164,7 @@ def mfcc(x_2d, window,n_mfcc=26, sr=16000):
     spec = np.abs(np.fft.fft(emphasis_signal, axis=-1))
     nfft = spec.shape[-1]
     spec = spec[:, :nfft//2+1]
-    melfilters = librosa.filters.mel(sr=sr,n_fft=nfft,fmax=sr//2, n_mels=n_mfcc*2)
+    melfilters = librosa.filters.mel(sr=sr,n_fft=nfft,fmax=sr//2, n_mels=1024)
     mspec = np.log10(np.dot(spec, melfilters.T)+1e-10)
     ceps = fftpack.dct(mspec,type=2, norm='ortho',axis=-1)
     return ceps[:, :n_mfcc]
