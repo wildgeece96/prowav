@@ -5,6 +5,7 @@ requires = [
             "scipy>=1.2.1",
             "numpy>=1.16.1",
             "librosa>=0.6.3",
+            "wavio>=0.0.4"
             ]
 
 
