@@ -63,12 +63,12 @@ class ProWav(object):
         self.data = data
 
     def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func='boxcar', zero_padding=False,
-                            repeat_padding=True):
+                            repeat_padding=True, n_mels=30):
         """
         inputs:
             frame_width : int. The length of frame for preprocessing (ms)
             stride_width: int. The hop size for preprocessing (ms)
-            mode: {'fft', 'MFCC'}. Specify preprocessing way.
+            mode: {'fft', 'MFCC', 'mel_spec'}. Specify preprocessing way.
             zero_padding : bool. If return the value which padded with zero.
             repeat_padding : bool. Whether padding with parts of sequence.
         returns:
@@ -96,12 +96,14 @@ class ProWav(object):
             x_2d = x[:frame_num*stride_per_frame].reshape(frame_num, num_per_frame)  
             if mode == 'fft':
                 if not window_func:
-                    x_2d = window(x_2d, window_func)
+                    x_2d = window_(x_2d, window_func)
                 x_spectrogram = np.fft.fft(x_2d) # >> (frame_num, num_per_frame)
                 x_spectrogram = np.abs(x_spectrogram)
             elif mode=='MFCC':
-                x_spectrogram = mfcc(x_2d, window,n_mfcc=n_mfcc,sr=self.samplerates[i])
+                x_spectrogram = mfcc(x_2d, window_func,n_mfcc=n_mfcc,sr=self.samplerates[i])
                  # >> (frame_num, num_per_frame)
+            elif mode =='mel_spec':
+                x_spectrogram = mel_spectrogram(x_2d, window_func, sr=self.samplerates[i], n_mels=n_mels)
             else:
                 raise ValueError("The mode %s is invalid"% mode)
             results.append(x_spectrogram)
@@ -123,7 +125,7 @@ class ProWav(object):
         return results
 
     def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func='boxcar', zero_padding=False,
-                repeat_padding=True):
+                repeat_padding=False, n_mels=None):
         """
         return :
          results: list of ndarray. List of  preprocessed data which has shape (frame_num, num_per_frame)
@@ -132,14 +134,16 @@ class ProWav(object):
             raise ValueError("n_mfcc should be specified if you choose mode MFCC")
         if zero_padding == repeat_padding and zero_padding==True:
             raise ValueError("You can not choose two padding mode. Please choose only one. repeat_padding or zero_padding")
+        if mode=='mel_spec' and not n_mels:
+            raise ValueError("n_mels should be specified if you choose mode mel_spec")
         results = self._prepro(frame_width=frame_width,stride_width=stride_width,mode=mode,n_mfcc=n_mfcc,window_func=window_func,zero_padding=zero_padding,
-                        repeat_padding=repeat_padding)
+                        repeat_padding=repeat_padding, n_mels=n_mels)
         return results
 
 
 
 
-def window(x_2d, window):
+def window_(x_2d, window):
     """
     inputs:
         x_2d : inputs (2D array)
@@ -160,22 +164,25 @@ def window(x_2d, window):
     `tukey` (needs taper fraction)
     """
     N = x_2d.shape[1]
-    window_func = signal.windows.get_windows(window, N)
-    result = x_2d * window
+    window_func = signal.get_window(window, N)
+    result = x_2d * window_func
     return result
 
-def mfcc(x_2d, window,n_mfcc=26, sr=16000):
-    emphasis_signal = preEmphasis(x_2d, 0.97)
-    if not window:
-        emphasis_signal = window(emphasis_signal, window)
-    spec = np.abs(np.fft.fft(emphasis_signal, axis=-1))
-    nfft = spec.shape[-1]
-    spec = spec[:, :nfft//2+1]
-    melfilters = librosa.filters.mel(sr=sr,n_fft=nfft,fmax=sr//2, n_mels=n_mfcc*4)
-    mspec = np.log10(np.dot(spec, melfilters.T)+1e-10)
+def mfcc(x_2d, window_func,n_mfcc=26, sr=16000):
+    mspec = mel_spectrogram(x_2d, window_func, n_mels=n_mfcc*4, sr=sr)
     ceps = fftpack.dct(mspec,type=2, norm='ortho',axis=-1)
     return ceps[:, :n_mfcc]
 
+def mel_spectrogram(x_2d, window_func, sr=16000, n_mels=30):
+    emphasis_signal = preEmphasis(x_2d, 0.97)
+    if window_func != None:
+        emphasis_signal = window_(emphasis_signal, window_func) 
+    spec = np.abs(np.fft.fft(emphasis_signal, axis=-1))
+    n_fft = spec.shape[-1]
+    spec = spec[:, :n_fft//2+1]
+    melfilters = librosa.filters.mel(sr=sr, n_fft=n_fft, fmax=sr//2, n_mels=n_mels)
+    mspec = np.log10(np.dot(spec, melfilters.T)+1e-10)
+    return mspec 
 def preEmphasis(x, p):
     """
     input:
