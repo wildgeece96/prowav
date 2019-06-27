@@ -2,10 +2,10 @@ from setuptools import setup
 
 
 requires = [
-            "scipy>=1.2.1",
+            "scipy>=1.3.0",
             "numpy>=1.16.1",
             "librosa>=0.6.3",
-            "wavio>=0.0.4"
+            "wavio>=0.0.4",
             ]
 
 
