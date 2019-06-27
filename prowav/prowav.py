@@ -65,14 +65,14 @@ class ProWav(object):
         self.data = data
 
     def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func='boxcar', zero_padding=False,
-                            repeat_sequence=True):
+                            repeat_padding=True):
         """
         inputs:
             frame_width : int. The length of frame for preprocessing (ms)
             stride_width: int. The hop size for preprocessing (ms)
             mode: {'fft', 'MFCC'}. Specify preprocessing way.
             zero_padding : bool. If return the value which padded with zero.
-            repeat_sequence : bool. Whether padding with parts of sequence.
+            repeat_padding : bool. Whether padding with parts of sequence.
         returns:
             results: list of ndarray with shape (data_num, frame_num, num_per_frame).
              or if zero_padding is True, shape (data_num, max_frame_num, num_per_frame).
@@ -118,7 +118,7 @@ class ProWav(object):
                 seq_len = self.num_frames[i]
                 results_[i, :seq_len] = results[i]
             return results_
-        elif repeat_sequence:
+        elif repeat_padding:
             max_frame_num = max(self.num_frames)
             results_ = make_batch_uniform_length(results, seq_len=max_frame_num, ds_rate=1,
                                             num_features=results[0].shape[-1])  
@@ -127,15 +127,17 @@ class ProWav(object):
         return results
 
     def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func='boxcar', zero_padding=False,
-                repeat_sequence=True):
+                repeat_padding=True):
         """
         return :
          results: list of ndarray. List of  preprocessed data which has shape (frame_num, num_per_frame)
         """
         if mode=='MFCC' and not n_mfcc:
             raise ValueError("n_mfcc should be specified if you choose mode MFCC")
+        if zero_padding == repeat_padding and zero_padding=True:
+            raise ValueError("You can not choose two padding mode. Please choose only one. repeat_padding or zero_padding")
         results = self._prepro(frame_width=frame_width,stride_width=stride_width,mode=mode,n_mfcc=n_mfcc,window_func=window_func,zero_padding=zero_padding,
-                        repeat_sequence=repeat_sequence)
+                        repeat_padding=repeat_padding)
         return results
 
 
