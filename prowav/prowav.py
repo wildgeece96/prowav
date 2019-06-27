@@ -64,13 +64,15 @@ class ProWav(object):
             data.append(x)
         self.data = data
 
-    def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func='boxcar', zero_padding=False):
+    def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func='boxcar', zero_padding=False,
+                            repeat_sequence=True):
         """
         inputs:
             frame_width : int. The length of frame for preprocessing (ms)
             stride_width: int. The hop size for preprocessing (ms)
             mode: {'fft', 'MFCC'}. Specify preprocessing way.
             zero_padding : bool. If return the value which padded with zero.
+            repeat_sequence : bool. Whether padding with parts of sequence.
         returns:
             results: list of ndarray with shape (data_num, frame_num, num_per_frame).
              or if zero_padding is True, shape (data_num, max_frame_num, num_per_frame).
@@ -116,17 +118,24 @@ class ProWav(object):
                 seq_len = self.num_frames[i]
                 results_[i, :seq_len] = results[i]
             return results_
+        elif repeat_sequence:
+            max_frame_num = max(self.num_frames)
+            results_ = make_batch_uniform_length(results, seq_len=max_frame_num, ds_rate=1,
+                                            num_features=results[0].shape[-1])  
+            return results_
 
         return results
 
-    def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func='boxcar', zero_padding=False):
+    def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func='boxcar', zero_padding=False,
+                repeat_sequence=True):
         """
         return :
          results: list of ndarray. List of  preprocessed data which has shape (frame_num, num_per_frame)
         """
         if mode=='MFCC' and not n_mfcc:
             raise ValueError("n_mfcc should be specified if you choose mode MFCC")
-        results = self._prepro(frame_width=frame_width,stride_width=stride_width,mode=mode,n_mfcc=n_mfcc,window_func=window_func,zero_padding=zero_padding)
+        results = self._prepro(frame_width=frame_width,stride_width=stride_width,mode=mode,n_mfcc=n_mfcc,window_func=window_func,zero_padding=zero_padding,
+                        repeat_sequence=repeat_sequence)
         return results
 
 
@@ -182,3 +191,36 @@ def preEmphasis(x, p):
         result[i] = np.convolve(x[i], [1, -p], mode='same')
     return result
         
+def fix_audio_length(data, seq_len=2000, ds_rate=1):
+    if len(data)>seq_len:
+        return data[:seq_len]
+    else:
+        return repeat_audio_length(data, seq_len, ds_rate=1)
+def repeat_audio_length(data, seq_len, ds_rate=1):
+    results = np.zeros(seq_len, dtype=np.int16)
+    data_len = data.shape[0]//ds_rate
+    data = data[::ds_rate]
+    step = 0
+    while (step+1)*data_len < seq_len:
+        results[step*data_len:(step+1)*data_len] = data
+        step += 1 
+    results[step*data_len:] = data[:seq_len-step*data_len]
+    return results 
+
+def make_batch_uniform_length(datas, seq_len=2000, ds_rate=1, num_features=0):
+    """
+    make batch which has uniform length of data.
+    inputs: 
+        datas : list or array of data. data is 2d or 1d array.
+        seq_len : int. The max number of frame in data. 
+        ds_rate : int. If you need to downsapling, you can choose downsampling rate.  
+        num_features : int. The num of features per frame.
+    """
+    n_data = len(datas)
+    if num_features != 0:
+        X = np.zeros([n_data, seq_len, num_features], dtype=datas[0].dtype)
+    else:
+        X = np.zeros([n_data, seq_len], dtype=datas[0].dtype)
+    for i in range(n_data):
+        X[i] = fix_audio_length(datas[i], seq_len, ds_rate=ds_rate)
+    return X 
