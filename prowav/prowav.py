@@ -1,4 +1,5 @@
 import numpy as np
+import wavio
 import librosa
 import wave
 from scipy import signal
@@ -15,7 +16,6 @@ class ProWav(object):
         self.file_paths = file_paths
         self.wave_sizes = []
         self.nchannels = []
-        self.framerates = []
         self.num_features = []
         self.num_frames = []
         self.samplerates = []
@@ -44,23 +44,21 @@ class ProWav(object):
         data = []
         for file_path in self.file_paths:
             try:
-                wave_file = wave.open(file_path, 'r')
+                wave_file = wavio.read(file_path)
             except Exception as e:
                 print(e)
                 print("Cannot open %s" % file_path)
                 raise ValueError
-            wave_size = wave_file.getnframes()
+            wave_size = wave_file.data.shape[0]
             if self.max_length < wave_size:
                 self.max_length = wave_size
-            nchannel = wave_file.getnchannels()
+            nchannel = wave_file.data.shape[1]
             self.nchannels.append(nchannel)
             self.wave_sizes.append(wave_size)
-            self.framerates.append(wave_file.getframerate())
-            self.samplerates.append(wave_file.getframerate())
-            x = wave_file.readframes(wave_size)
-            x = np.frombuffer(x, dtype='int16')
+            self.samplerates.append(wave_file.rate)
+            x = wave_file.data
             if nchannel == 2:
-                x = x[0, :]  # streo to monoral
+                x = x.mean(axis=1)  # streo to monoral
             data.append(x)
         self.data = data
 
@@ -85,7 +83,7 @@ class ProWav(object):
         max_wave_size = max(self.wave_sizes)
         for i in range(len(self.data)):
             x = self.data[i]
-            sample_rate = self.framerates[i]
+            sample_rate = self.samplerates[i]
             wave_size = self.wave_sizes[i]
 
             num_per_frame = int(frame_width /1000 * sample_rate)
@@ -95,9 +93,7 @@ class ProWav(object):
             frame_num = int((wave_size-num_per_frame)//stride_per_frame) # number of frame
             if not frame_num:
                 raise ValueError
-            x_2d = np.zeros((frame_num, num_per_frame), dtype='int16')
-            for j in range(frame_num):
-                x_2d[j] = x[ j*stride_per_frame: j*stride_per_frame + num_per_frame]
+            x_2d = x[:frame_num*stride_per_frame].reshape(frame_num, num_per_frame)  
             if mode == 'fft':
                 if not window_func:
                     x_2d = window(x_2d, window_func)
@@ -134,7 +130,7 @@ class ProWav(object):
         """
         if mode=='MFCC' and not n_mfcc:
             raise ValueError("n_mfcc should be specified if you choose mode MFCC")
-        if zero_padding == repeat_padding and zero_padding=True:
+        if zero_padding == repeat_padding and zero_padding==True:
             raise ValueError("You can not choose two padding mode. Please choose only one. repeat_padding or zero_padding")
         results = self._prepro(frame_width=frame_width,stride_width=stride_width,mode=mode,n_mfcc=n_mfcc,window_func=window_func,zero_padding=zero_padding,
                         repeat_padding=repeat_padding)
@@ -175,7 +171,7 @@ def mfcc(x_2d, window,n_mfcc=26, sr=16000):
     spec = np.abs(np.fft.fft(emphasis_signal, axis=-1))
     nfft = spec.shape[-1]
     spec = spec[:, :nfft//2+1]
-    melfilters = librosa.filters.mel(sr=sr,n_fft=nfft,fmax=sr//2, n_mels=1024)
+    melfilters = librosa.filters.mel(sr=sr,n_fft=nfft,fmax=sr//2, n_mels=n_mfcc*4)
     mspec = np.log10(np.dot(spec, melfilters.T)+1e-10)
     ceps = fftpack.dct(mspec,type=2, norm='ortho',axis=-1)
     return ceps[:, :n_mfcc]
@@ -199,7 +195,12 @@ def fix_audio_length(data, seq_len=2000, ds_rate=1):
     else:
         return repeat_audio_length(data, seq_len, ds_rate=1)
 def repeat_audio_length(data, seq_len, ds_rate=1):
-    results = np.zeros(seq_len, dtype=np.int16)
+    if len(data.shape) == 2:
+        results = np.zeros([seq_len, data.shape[1]], dtype=np.int16)
+    elif len(data.shape)==1:
+        results = np.zeros(seq_len, dtype=np.int16)
+    else:
+        raise ValueError(f"Invalid shape of data which has {data.shape}")
     data_len = data.shape[0]//ds_rate
     data = data[::ds_rate]
     step = 0
@@ -217,6 +218,9 @@ def make_batch_uniform_length(datas, seq_len=2000, ds_rate=1, num_features=0):
         seq_len : int. The max number of frame in data. 
         ds_rate : int. If you need to downsapling, you can choose downsampling rate.  
         num_features : int. The num of features per frame.
+    returns:
+        datas : array of data. data is 2d (seq_len, num_features), 1d(seq_len) array.
+
     """
     n_data = len(datas)
     if num_features != 0:
