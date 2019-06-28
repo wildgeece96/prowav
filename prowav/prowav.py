@@ -63,7 +63,7 @@ class ProWav(object):
         self.data = data
 
     def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func='boxcar', zero_padding=False,
-                            repeat_padding=True, n_mels=30):
+                            repeat_padding=False, n_mels=30):
         """
         inputs:
             frame_width : int. The length of frame for preprocessing (ms)
@@ -88,12 +88,13 @@ class ProWav(object):
 
             num_per_frame = int(frame_width /1000 * sample_rate)
             stride_per_frame = int(stride_width / 1000 * sample_rate)
-            wave_length = int(wave_size - wave_size%num_per_frame)
 
             frame_num = int((wave_size-num_per_frame)//stride_per_frame) # number of frame
             if not frame_num:
                 raise ValueError
-            x_2d = x[:frame_num*stride_per_frame].reshape(frame_num, num_per_frame)  
+            x_2d = np.zeros([frame_num, num_per_frame], dtype=x.dtype)
+            for j in range(frame_num):
+                x_2d[j] = x[j*stride_per_frame:j*stride_per_frame+num_per_frame] 
             if mode == 'fft':
                 if not window_func:
                     x_2d = window_(x_2d, window_func)
