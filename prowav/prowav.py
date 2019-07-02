@@ -172,7 +172,7 @@ def window_(x_2d, window):
 def mfcc(x_2d, window_func,n_mfcc=26, sr=16000):
     mspec = mel_spectrogram(x_2d, window_func, n_mels=n_mfcc*4, sr=sr)
     ceps = fftpack.dct(mspec,type=2, norm='ortho',axis=-1)
-    return ceps[:, :n_mfcc]
+    return ceps[:, 1:n_mfcc+1]
 
 def mel_spectrogram(x_2d, window_func, sr=16000, n_mels=30):
     emphasis_signal = preEmphasis(x_2d, 0.97)
