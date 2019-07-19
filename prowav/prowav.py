@@ -38,64 +38,41 @@ class ProWav(object):
                 invalid_faile_list.append(file_path)
             valid_length.append(wave_file.getnframes())
             wave_file.close()
-    def load_wav(self, ds_rate=None, verbose=0):
+    def load_wav(self, sr=None, verbose=0):
         """
         load wav files from self.file_paths
         ds_rate : int. downsampling rate.
         """
         data = []
         if verbose == 0:
-            for file_path in self.file_paths:
-                try:
-                    wave_file = wavio.read(file_path)
-                except Exception as e:
-                    print(e)
-                    print("Cannot open %s" % file_path)
-                    raise ValueError
-                if ds_rate:
-                    wave_file.data = wave_file.data[::ds_rate]
-                wave_size = wave_file.data.shape[0]
-                if self.max_length < wave_size:
-                    self.max_length = wave_size
-                nchannel = wave_file.data.shape[1]
-                self.nchannels.append(nchannel)
-                self.wave_sizes.append(wave_size)
-                if ds_rate:
-                    self.samplerates.append(wave_file.rate//ds_rate)
-                else:
-                    self.samplerates.append(wave_file.rate)
-                x = wave_file.data
-                if nchannel == 2:
-                    x = x.mean(axis=1)  # streo to monoral
-                else:
-                    x = x.flatten()
-                data.append(x)
+            path_iter = self.file_paths
         else:
-            for file_path in tqdm(self.file_paths):
-                try:
-                    wave_file = wavio.read(file_path)
-                except Exception as e:
-                    print(e)
-                    print("Cannot open %s" % file_path)
-                    raise ValueError
-                if ds_rate:
-                    wave_file.data = wave_file.data[::ds_rate]
-                wave_size = wave_file.data.shape[0]
-                if self.max_length < wave_size:
-                    self.max_length = wave_size
-                nchannel = wave_file.data.shape[1]
-                self.nchannels.append(nchannel)
-                self.wave_sizes.append(wave_size)
-                if ds_rate:
-                    self.samplerates.append(wave_file.rate//ds_rate)
-                else:
-                    self.samplerates.append(wave_file.rate)
-                x = wave_file.data
-                if nchannel == 2:
-                    x = x.mean(axis=1)  # streo to monoral
-                else:
-                    x = x.flatten()
-                data.append(x)
+            path_iter = tqdm(self.file_paths)
+        for file_path in path_iter:
+            try:
+                wave_file = wavio.read(file_path)
+            except Exception as e:
+                print(e)
+                print("Cannot open %s" % file_path)
+                raise ValueError
+            wave_file.data = wave_file.data.astype(np.float32)
+            if sr:
+                wave_file.data = librosa.core.resample(wave_file.data.T, orig_sr=wave_file.rate, target_sr=sr).T
+                self.samplerates.append(sr)
+            else:
+                self.samplerates.append(wave_file.rate)
+            wave_size = wave_file.data.shape[0]
+            if self.max_length < wave_size:
+                self.max_length = wave_size
+            nchannel = wave_file.data.shape[1]
+            self.nchannels.append(nchannel)
+            self.wave_sizes.append(wave_size)
+            x = wave_file.data
+            if nchannel == 2:
+                x = x.mean(axis=1)  # streo to monoral
+            else:
+                x = x.flatten()
+            data.append(x)
         self.data = data
 
     def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func='boxcar', zero_padding=False,
