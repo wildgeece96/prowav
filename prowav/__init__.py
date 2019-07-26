@@ -1,3 +1,3 @@
 from .prowav import ProWav
 
-__version__ = '0.3'
+__version__ = '0.4'
