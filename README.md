@@ -8,7 +8,8 @@ pip install prowav
 ```
 
 
-### Usage 
+### Usage  
+
 ProWav can calculate mfcc spectrogram and pad for batch execution  
 ```python  
 from prowav import ProWav  
@@ -40,10 +41,11 @@ You can also use mel-spectrogram. Specify the mode, "mel_spec"
 prowav = ProWav(["path/to/wave/data_1.wav", "path/to/wave/data_2.wav"])
 frame_width = 50 
 stride_width = 50 
-mode='mel_spec'
+mode='MFCC'
+n_mfcc = 26
 window_func='hamming'
 data = prowav.prepro(frame_widh=frame_width, stride_width=stride_width,
-                  mode=mode, window_func=window_func)
+                  mode=mode, window_func=window_func, n_mfcc=n_mfcc)
 ```
 
 You can use zero-padding or repeat-padding.
@@ -52,11 +54,12 @@ prowav = ProWav(["path/to/wave/data_1.wav", "path/to/wave/data_2.wav"])
 frame_width = 50 
 stride_width = 50 
 mode='mel_spec'
+n_mels = 50
 window_func='hamming'
 data_zero = prowav.prepro(frame_widh=frame_width, stride_width=stride_width,
-                  mode=mode, window_func=window_func, zero_padding=True) # zero padding 
+                  mode=mode, n_mels=n_mels,window_func=window_func, zero_padding=True) # zero padding 
 data_repeat = prowav.prepro(frame_widh=frame_width, stride_width=stride_width,
-                  mode=mode, window_func=window_func, repeat_padding=True) # repeat padding 
+                  mode=mode, ne_mels=n_mels, window_func=window_func, repeat_padding=True) # repeat padding 
 ```
 
 Just loading wave data is possible.  
@@ -68,3 +71,13 @@ prowav.load_wav() # loading wav file into this class.
 
 prowav.data # the list of ndarray. Raw data are listed.
 ```
+
+You can choose parallel option.
+
+```python 
+prowav.load_wav(parallel=True)
+
+prowav.load_wav(parallel=True, verbose=5)
+```
+
+
