@@ -7,6 +7,8 @@ requires = [
             "librosa>=0.6.3",
             "wavio>=0.0.4",
             "joblib",
+            "EMD-signal",
+            "tqdm"
             ]
 
 with open("README.md", "r") as fh:
@@ -14,7 +16,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='prowav',
-    version='0.4',
+    version='0.5',
     description='The package for preprocessing wave data',
     url='https://github.com/wildgeece96/prowav',
     author='Soh',
