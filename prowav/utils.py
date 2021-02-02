@@ -5,8 +5,7 @@ import wave
 from scipy import signal
 from scipy import fromstring, int16
 from scipy import fftpack
-
-
+from PyEMD import EMD
 
 
 def window_(x_2d, window):
@@ -49,6 +48,13 @@ def mel_spectrogram(x_2d, window_func, sr=16000, n_mels=30):
     melfilters = librosa.filters.mel(sr=sr, n_fft=n_fft, fmax=sr//2, n_mels=n_mels)
     mspec = np.log10(np.dot(spec, melfilters.T)+1e-10)
     return mspec 
+
+def emd(x, n_imf=2, sr=8000):
+    emd = EMD()
+    t = np.linspace(0, float(x.shape[0]/sr), x.shape[0])  
+    imfs = emd.emd(x, t, max_imf=n_imf)
+    return imfs[-n_imf:]
+
 def preEmphasis(x, p):
     """
     input:
@@ -67,6 +73,7 @@ def fix_audio_length(data, seq_len=2000, ds_rate=1):
         return data[:seq_len]
     else:
         return repeat_audio_length(data, seq_len, ds_rate=1)
+
 def repeat_audio_length(data, seq_len, ds_rate=1):
     if len(data.shape) == 2:
         results = np.zeros([seq_len, data.shape[1]], dtype=np.int16)

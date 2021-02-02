@@ -53,7 +53,7 @@ class ProWav(object):
                 invalid_faile_list.append(file_path)
             valid_length.append(wave_file.getnframes())
             wave_file.close()
-    def _load_wav(self, file_path, idx, sr=None):
+    def _load_wav(self, file_path, idx, sr=None, use_emd=False):
         result = Sound()
         result.idx = idx
         try:
@@ -63,6 +63,7 @@ class ProWav(object):
             print("Cannot open %s" % file_path)
             raise ValueError
         wave_file.data = wave_file.data.astype(np.float32)
+        wave_file.data /= wave_file.data.max()
         if sr:
             wave_file.data = librosa.core.resample(wave_file.data.T, orig_sr=wave_file.rate, target_sr=sr, res_type="kaiser_fast").T
             result.sr = sr
@@ -77,10 +78,12 @@ class ProWav(object):
             x = x.mean(axis=1)  # streo to monoral
         else:
             x = x.flatten()
+        if use_emd:
+            x = emd(x, sr=result.sr, n_imf=1)
         result.data = x  
         return result 
 
-    def load_wav(self, sr=None, verbose=0, parallel=False):
+    def load_wav(self, sr=None, verbose=0, parallel=False, use_emd=False):
         """
         load wav files from self.file_paths
         sr : int. if you specify sr, you can get wave files which have a common samplerate.
@@ -90,7 +93,7 @@ class ProWav(object):
         
         if parallel:
             results = Parallel(n_jobs=-1, verbose=10*verbose,
-                                backend='threading')([delayed(self._load_wav)(file_path,idx, sr) for idx, file_path in enumerate(self.file_paths)])
+                                backend='threading')([delayed(self._load_wav)(file_path,idx, sr, use_emd) for idx, file_path in enumerate(self.file_paths)])
             data = [i for i in range(len(self.file_paths))]
             self.samplerates = [i for i in range(len(self.file_paths))]
             self.nchannels = [i for i in range(len(self.file_paths))]
@@ -105,7 +108,7 @@ class ProWav(object):
                 file_iter = self.file_paths 
             else:
                 file_iter = tqdm(self.file_paths)
-            results = [self._load_wav(file_path, idx, sr) for idx, file_path in enumerate(file_iter)]
+            results = [self._load_wav(file_path, idx, sr, use_emd) for idx, file_path in enumerate(file_iter)]
             
             for result in results:
                 self.samplerates.append(result.sr)
@@ -141,7 +144,7 @@ class ProWav(object):
         return (i, x_spectrogram, num_features, frame_num)
 
     def _prepro(self, frame_width=20,stride_width=20,mode='fft',n_mfcc=None,window_func='boxcar', zero_padding=False,
-                            repeat_padding=False, n_mels=30, parallel=False, sr=None,verbose=0):
+                            repeat_padding=False, n_mels=30, parallel=False, sr=None,verbose=0, use_emd=False):
         """
         inputs:
             frame_width : int. The length of frame for preprocessing (ms)
@@ -157,7 +160,7 @@ class ProWav(object):
              or if zero_padding is True, shape (data_num, max_frame_num, num_per_frame).
         """
         if not self.data:
-            self.load_wav(parallel=parallel, sr=sr)
+            self.load_wav(parallel=parallel, sr=sr, use_emd=use_emd)
         results = [i for i in range(len(self.data))] # initialization
         self.num_features = [i for i in range(len(self.data))] # initialization 
         self.num_frames  = [i for i in range(len(self.data))] # initialization
@@ -226,12 +229,12 @@ class ProWav(object):
         return results
 
     def prepro(self, mode='fft', frame_width=20, stride_width=20,n_mfcc=None,window_func='boxcar', zero_padding=False,
-                repeat_padding=False, n_mels=None, parallel=False, sr=None, verbose=0):
+                repeat_padding=False, n_mels=None, parallel=False, sr=None, use_emd=False, verbose=0):
         """
         inputs:
             frame_width : int. The length of frame for preprocessing (ms)
             stride_width: int. The hop size for preprocessing (ms)
-            mode: {'fft', 'MFCC', 'mel_spec'}. Specify preprocessing way.
+            mode: {'fft', 'MFCC', 'mel_spec', 'IMF'}. Specify preprocessing way.
             zero_padding : bool. If return the value which padded with zero.
             repeat_padding : bool. Whether padding with parts of sequence.
             n_mfcc : int. Number of dimension for MFCC.
@@ -244,11 +247,12 @@ class ProWav(object):
         if mode=='MFCC' and not n_mfcc:
             raise ValueError("n_mfcc should be specified if you choose mode MFCC")
         if zero_padding == repeat_padding and zero_padding==True:
-            raise ValueError("You can not choose two padding mode. Please choose only one. repeat_padding or zero_padding")
+            raise ValueError("You can not choose two padding mode. Please choose one. repeat_padding or zero_padding")
         if mode=='mel_spec' and not n_mels:
             raise ValueError("n_mels should be specified if you choose mode mel_spec")
+
         results = self._prepro(frame_width=frame_width,stride_width=stride_width,mode=mode,n_mfcc=n_mfcc,window_func=window_func,zero_padding=zero_padding,
-                        repeat_padding=repeat_padding, n_mels=n_mels, parallel=parallel,sr=sr, verbose=verbose)
+                        repeat_padding=repeat_padding, n_mels=n_mels, parallel=parallel,sr=sr, use_emd=False, verbose=verbose)
         return results
 
 
